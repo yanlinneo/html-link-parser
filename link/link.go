@@ -1,7 +1,6 @@
 package link
 
 import (
-	"fmt"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -12,9 +11,8 @@ type Link struct {
 	Text string
 }
 
-func ExtractLinks(n *html.Node, links *[]Link, link *Link) {
-	//fmt.Println("Node:", n.Data, n.Type)
-
+// Extract Anchor links from HTML Nodes
+func Extract(n *html.Node, links *[]Link, link *Link) {
 	if link.Href != "" && n.Type == html.TextNode {
 		// trim text, add text to link.Text if it is not empty
 		text := strings.TrimSpace(n.Data)
@@ -28,9 +26,8 @@ func ExtractLinks(n *html.Node, links *[]Link, link *Link) {
 		if n.Data == "a" {
 			for _, attr := range n.Attr {
 				if attr.Key == "href" {
-					fmt.Println("Node:", n.Data, attr.Key, attr.Val)
 					link.Href = attr.Val
-					ExtractLinks(n.FirstChild, links, link)
+					Extract(n.FirstChild, links, link)
 					*links = append(*links, *link)
 					link.Href = ""
 					link.Text = ""
@@ -40,10 +37,10 @@ func ExtractLinks(n *html.Node, links *[]Link, link *Link) {
 	}
 
 	if n.FirstChild != nil {
-		ExtractLinks(n.FirstChild, links, link)
+		Extract(n.FirstChild, links, link)
 	}
 
 	if n.NextSibling != nil {
-		ExtractLinks(n.NextSibling, links, link)
+		Extract(n.NextSibling, links, link)
 	}
 }

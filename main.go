@@ -10,11 +10,12 @@ import (
 )
 
 func main() {
-	parseHTML()
+	var htmlFile = "ex4.html"
+	parse(htmlFile)
 }
 
-func parseHTML() {
-	file, err := os.Open("ex4.html")
+func parse(htmlFile string) {
+	file, err := os.Open(htmlFile)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
@@ -30,7 +31,7 @@ func parseHTML() {
 
 	var links []link.Link
 	var link link.Link
-	pkglink.ExtractLinks(node, &links, &link)
+	pkglink.Extract(node, &links, &link)
 
 	fmt.Println("let's loop!")
 	for _, l := range links {
