@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"html-link-parser/link"
 	pkglink "html-link-parser/link"
 	"os"
 
@@ -10,15 +9,22 @@ import (
 )
 
 func main() {
-	var htmlFile = "ex4.html"
-	parse(htmlFile)
+	var htmlFile = "ex5.html"
+	links, err := parse(htmlFile)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, l := range links {
+		fmt.Println(l.Href, "\t", l.Text)
+	}
 }
 
-func parse(htmlFile string) {
+func parse(htmlFile string) ([]pkglink.Link, error) {
 	file, err := os.Open(htmlFile)
 	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
+		return nil, err
 	}
 
 	defer file.Close()
@@ -26,15 +32,10 @@ func parse(htmlFile string) {
 	node, err := html.Parse(file)
 
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
 
-	var links []link.Link
-	var link link.Link
-	pkglink.Extract(node, &links, &link)
+	links := pkglink.Extract(node)
 
-	fmt.Println("let's loop!")
-	for _, l := range links {
-		fmt.Println(l.Href, "------>", l.Text)
-	}
+	return links, nil
 }
