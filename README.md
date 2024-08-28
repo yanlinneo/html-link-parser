@@ -29,6 +29,7 @@ Special thanks to https://github.com/gophercises/link for this practise idea and
 - Trim.Space() function is applicable for leading and trailing whitespace.
 - Used Regex to remove other whitespace such as \t, \n.
 - However, the time taken for Regex to process and remove whitespace is time-consuming. My program takes 1s to process 89 links.
+
 **Nested Anchor Elements**
 - ex5.html (test case) originally in this project will be removed for the following reasons:
   - This file contains multiple levels of nested anchor (<a>) elements. When it is loaded in a browser, some of the anchor element links appear duplicated.
@@ -42,7 +43,7 @@ Special thanks to https://github.com/gophercises/link for this practise idea and
 - Adding Test Cases.
 
 ### 21/08/2024
-** Naming Conventions for functions/methods**
+**Naming Conventions for functions/methods**
 - Keep it simple, avoid excessive reptition.
 
 
