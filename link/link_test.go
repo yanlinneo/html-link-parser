@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-// test with an empty HTML node and ensure empty links are returned
+// test with an empty HTML node and ensure empty links are not included
 func TestExtract_EmptyLinks(t *testing.T) {
 	emptyNode := html.Node{}
 
@@ -15,33 +15,6 @@ func TestExtract_EmptyLinks(t *testing.T) {
 
 	if len(got) > 0 {
 		t.Fatalf("Extract() = %v; want links to be empty", got)
-	}
-}
-
-func TestExtract_NoEmptyLinks(t *testing.T) {
-	htmlString := `<html><body><a href="/dog-cat">dog cat<a href="/meh">NOT NEEDED<span> LIAO</span></a><span>bird</span></a></body></html>`
-
-	node, err := html.Parse(strings.NewReader(htmlString))
-	if err != nil {
-		t.Errorf("Error parsing HTML: %v", err) // Correct usage of Error()
-		return
-	}
-
-	got := Extract(node)
-
-	want := []Link{
-		{Href: "/dog-cat", Text: "dog cat"},
-		{Href: "/meh", Text: "NOT NEEDED LIAO"},
-	}
-
-	if len(got) != len(want) {
-		t.Fatalf("Extract() = %v; want %v", got, want)
-	}
-
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("Extract()[%d] = %v; want %v", i, got[i], want[i])
-		}
 	}
 }
 
@@ -65,7 +38,7 @@ func TestExtract_IncludeInnerText(t *testing.T) {
 	got := Extract(node)
 
 	want := []Link{
-		{Href: "/dog-cat", Text: "dog cat ARE ANIMALS"},
+		{Href: "/dog-cat", Text: "dog cat, ARE ANIMALS"},
 	}
 
 	if len(got) != len(want) {

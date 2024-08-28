@@ -1,15 +1,19 @@
 package link
 
 import (
-	"fmt"
+	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/net/html"
 )
 
 type Link struct {
-	Href string
-	Text string
+	ID              int64
+	Href            string
+	Text            string
+	SourceUrl       string
+	CreatedDateTime time.Time
 }
 
 // Extract Anchor links from HTML Nodes
@@ -24,12 +28,15 @@ func Extract(n *html.Node) []Link {
 		}
 
 		if tn.Type == html.TextNode {
-			trimText := strings.TrimSpace(tn.Data)
+			// remove other whitespace such as \t, \n etc
+			re := regexp.MustCompile(`\s+`)
+			cleanedText := re.ReplaceAllString(tn.Data, " ")
+
+			// remove leading and trailing whitespace
+			trimText := strings.TrimSpace(cleanedText)
 
 			if trimText != "" {
 				text = append(text, trimText)
-			} else {
-				fmt.Println(tn)
 			}
 		}
 
@@ -54,12 +61,11 @@ func Extract(n *html.Node) []Link {
 				if attr.Key == "href" {
 					// we will only be interested in other elements if it is inside a href
 					getText(n.FirstChild)
-					links = append(links, Link{Href: attr.Val, Text: strings.Join(text, " ")})
+					links = append(links, Link{Href: attr.Val, Text: strings.Join(text, ", ")})
 					text = nil
 
 					traverse(n.NextSibling)
 					return
-
 				}
 			}
 		}
