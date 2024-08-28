@@ -5,9 +5,13 @@
 > **It is not intended for use with production data or in a production environment.**
 
 ## Overview
-- Extract outer anchor links and text from a HTML page. These data are saved into a MySQL database for future analysis and reference.
-- Inner anchor links are omitted because nesting anchor elements is not standard HTML practice.
+- Extract all outer anchor links and their text from a HTML page.
 
+## Features
+- The HTML page is accessed via an API call.
+- All inner text elements within an anchor element are joined using a ", " delimiter.
+- Inner nested anchor links are omitted. Nesting anchor elements is not standard HTML practice.
+- The links are saved into a MySQL database for future analysis and reference.
 
 ## Credits
 Special thanks to https://github.com/gophercises/link for this practise idea and providing the materials for testing purposes:
@@ -38,6 +42,7 @@ Special thanks to https://github.com/gophercises/link for this practise idea and
 - Adding Test Cases.
 
 ### 21/08/2024
-- Naming Conventions for functions/methods: Keep it simple, avoid excessive reptition.
+** Naming Conventions for functions/methods**
+- Keep it simple, avoid excessive reptition.
 
 
