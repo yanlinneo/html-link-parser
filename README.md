@@ -1,17 +1,26 @@
 # HTML Link Parser
 - Random HTML Link Parser written in Go
 > [!CAUTION]
-> This is a personal project created for my own learning purposes.
-> **It is not intended for use with production data or in a production environment.**
+> This is a personal project created for my own learning purposes. **This project is not intended for use with production data or in a production environment.**
 
 ## Overview
-- Extract all outer anchor links and their text from a HTML page.
+- Access a HTML page and all relative paths of the site via API calls concurrently, ensuring each path is accessible.
 
 ## Features
-- The HTML page is accessed via an API call.
-- All inner text elements within an anchor element are joined using a ", " delimiter.
-- Inner nested anchor links are omitted. Nesting anchor elements is not standard HTML practice.
-- The links are saved into a MySQL database for future analysis and reference.
+- **Access the HTML page:**
+  - The initial HTML page is accessed via an API call.
+- **Extract anchor elements:**
+  - Extract all outer anchor elements with an href attribute from the HTML page.
+  - Extract and join all inner text elements within these anchor elements using a ", " delimiter.
+- **Save the links:**
+  - Save the extracted links and text into a MySQL database.
+- **Retrieve and process the relative paths**
+  - Recursively retrieve all the relative paths from database.
+  - For each relative path, access the page, extract anchor links, and save them.
+- **Note**:
+  - Inner nested anchor links are omitted. Nesting anchor elements is not standard HTML practice.
+  - Only links that are contained within anchor elements and are properly linked will be extracted. For example, if a page like "about-us" is not referenced or connected within other pages, it may not be included in the extraction.
+  - Other links that are not relative paths are not being utilized at the moment. However, they can be used for future reference and analysis.
 
 ## Credits
 Special thanks to https://github.com/gophercises/link for this practise idea and providing the materials for testing purposes:
@@ -21,9 +30,18 @@ Special thanks to https://github.com/gophercises/link for this practise idea and
 - ex4.html
 
 ## Other Ideas/Enhancements
-- Optimize the speed to remove whitespace such as \t, \n. Current Regex method in my program takes 1s to process 89 links.
+- Add more test cases for the newly added functions
+- Host my program and database in Kubernetes
+
+## Contributions
+This is a personal project for my own learning purposes, so I am not accepting changes or pull requests. However, I welcome new ideas and suggestions for improving the project.
 
 ## What I Have Learnt
+### 29/08/2024
+- Introduced concurrency to my program such that I can process more than 1 relative path concurrently.
+- Intoduced a map and RWLock to optimize my program such that links that are saved in database will not need to be extracted again.
+- Changed the process to remove whitespace -> Trim.Space() function, then Regex.
+
 ### 28/08/2024
 **Whitespace**
 - Trim.Space() function is applicable for leading and trailing whitespace.
