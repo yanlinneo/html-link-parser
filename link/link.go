@@ -3,9 +3,15 @@ package link
 import (
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/html"
+)
+
+var (
+	lock         sync.RWMutex
+	existingHref = map[string]int{}
 )
 
 type Link struct {
@@ -13,7 +19,25 @@ type Link struct {
 	Href            string
 	Text            string
 	SourceUrl       string
+	BaseUrl         string
 	CreatedDateTime time.Time
+	StatusCode      int
+	StatusMessage   string
+}
+
+func checkHref(href string) bool {
+	lock.RLock()
+	defer lock.RUnlock()
+
+	_, ok := existingHref[href]
+	return ok
+}
+
+func saveHref(href string) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	existingHref[href] = 1
 }
 
 // Extract Anchor links from HTML Nodes
@@ -28,15 +52,15 @@ func Extract(n *html.Node) []Link {
 		}
 
 		if tn.Type == html.TextNode {
-			// remove other whitespace such as \t, \n etc
-			re := regexp.MustCompile(`\s+`)
-			cleanedText := re.ReplaceAllString(tn.Data, " ")
-
 			// remove leading and trailing whitespace
-			trimText := strings.TrimSpace(cleanedText)
+			trimText := strings.TrimSpace(tn.Data)
 
-			if trimText != "" {
-				text = append(text, trimText)
+			// replace all whitespace such as \t, \n into a single space
+			re := regexp.MustCompile(`\s+`)
+			cleanedText := re.ReplaceAllString(trimText, " ")
+
+			if cleanedText != "" {
+				text = append(text, cleanedText)
 			}
 		}
 
@@ -60,12 +84,16 @@ func Extract(n *html.Node) []Link {
 			for _, attr := range n.Attr {
 				if attr.Key == "href" {
 					// we will only be interested in other elements if it is inside a href
-					getText(n.FirstChild)
-					links = append(links, Link{Href: attr.Val, Text: strings.Join(text, ", ")})
-					text = nil
 
-					traverse(n.NextSibling)
-					return
+					if exists := checkHref(attr.Val); !exists {
+						saveHref(attr.Val)
+						getText(n.FirstChild)
+						links = append(links, Link{Href: attr.Val, Text: strings.Join(text, ", ")})
+						text = nil
+
+						traverse(n.NextSibling)
+						return
+					}
 				}
 			}
 		}
