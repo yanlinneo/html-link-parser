@@ -23,11 +23,7 @@
   - Other links that are not relative paths are not being utilized at the moment. However, they can be used for future reference and analysis.
 
 ## Credits
-Special thanks to https://github.com/gophercises/link for this practise idea and providing the materials for testing purposes:
-- ex1.html
-- ex2.html
-- ex3.html
-- ex4.html
+Special thanks to https://github.com/gophercises/link for this practise idea.
 
 ## Other Ideas/Enhancements
 - Add more test cases for the newly added functions
