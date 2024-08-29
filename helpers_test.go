@@ -1,6 +1,7 @@
-package link
+package main
 
 import (
+	"html-link-parser/models"
 	"strings"
 	"testing"
 
@@ -33,16 +34,16 @@ func TestExtract_ExcludeCommentedText(t *testing.T) {
 }
 
 func TestExtract_IncludeInnerText(t *testing.T) {
-	htmlString := `<html><body><a href="/dog-cat">dog cat<span> ARE ANIMALS</span></a></body></html>`
+	htmlString := `<html><body><a href="/about-us">Hello! <span>Welcome to about us page!</span></a></body></html>`
 	node, _ := html.Parse(strings.NewReader(htmlString))
 	got := Extract(node)
 
-	want := []Link{
-		{Href: "/dog-cat", Text: "dog cat, ARE ANIMALS"},
+	want := []models.Link{
+		{Href: "/about-us", Text: "Hello!, Welcome to about us page!"},
 	}
 
 	if len(got) != len(want) {
-		t.Fatalf("Extract() = %v; want %v", got, want)
+		t.Fatalf("Extract() = %v; want -%v-", got, want)
 	}
 
 	for i := range want {

@@ -1,9 +1,8 @@
-package repository
+package models
 
 import (
 	"database/sql"
 	"fmt"
-	pkglink "html-link-parser/link"
 	"log"
 	"log/slog"
 	"os"
@@ -11,6 +10,17 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 )
+
+type Link struct {
+	ID              int64
+	Href            string
+	Text            string
+	SourceUrl       string
+	BaseUrl         string
+	CreatedDateTime time.Time
+	StatusCode      int
+	StatusMessage   string
+}
 
 var db *sql.DB
 
@@ -45,8 +55,8 @@ func InitDB() error {
 	return nil
 }
 
-func RelativePaths(baseUrl string) ([]pkglink.Link, error) {
-	var links []pkglink.Link
+func RelativePaths(baseUrl string) ([]Link, error) {
+	var links []Link
 
 	// remember to add prepared params!!!
 	rows, err := db.Query(
@@ -59,7 +69,7 @@ func RelativePaths(baseUrl string) ([]pkglink.Link, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		var link pkglink.Link
+		var link Link
 		if err := rows.Scan(&link.ID, &link.Href, &link.BaseUrl); err != nil {
 			return nil, fmt.Errorf("RelativePaths: %v", err)
 		}
@@ -74,9 +84,12 @@ func RelativePaths(baseUrl string) ([]pkglink.Link, error) {
 	return links, nil
 }
 
-func UpdateStatus(link pkglink.Link) (int64, error) {
+func (link Link) UpdateStatus() (int64, error) {
 	fmt.Println(link.StatusCode, link.StatusMessage)
-	result, err := db.Exec("UPDATE link SET status_code = ?, status_message = ? WHERE id = ?", link.StatusCode, link.StatusMessage, link.ID)
+	result, err := db.Exec("UPDATE link SET status_code = ?, status_message = ? WHERE id = ?",
+		link.StatusCode, link.StatusMessage, link.ID,
+	)
+
 	if err != nil {
 		return 0, fmt.Errorf("UpdateStatus: %v", err)
 	}
@@ -89,8 +102,11 @@ func UpdateStatus(link pkglink.Link) (int64, error) {
 	return id, nil
 }
 
-func Add(link pkglink.Link) (int64, error) {
-	result, err := db.Exec("INSERT INTO link (url, description, source_url, base_url, created_at) VALUES (?, ?, ?, ?, ?)", link.Href, link.Text, link.SourceUrl, link.BaseUrl, time.Now())
+func (link Link) Add() (int64, error) {
+	result, err := db.Exec("INSERT INTO link (url, description, source_url, base_url, created_at) VALUES (?, ?, ?, ?, ?)",
+		link.Href, link.Text, link.SourceUrl, link.BaseUrl, time.Now(),
+	)
+
 	if err != nil {
 		return 0, fmt.Errorf("Add: %v", err)
 	}
