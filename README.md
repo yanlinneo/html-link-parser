@@ -26,8 +26,8 @@
 Special thanks to https://github.com/gophercises/link for this practise idea.
 
 ## Other Ideas/Enhancements
-- Add more test cases for the newly added functions
-- Host my program and database in Kubernetes
+- Explore batch inserts/updates for database queries instead of inserting/updating the link individually.
+- Host my project and database in Kubernetes
 
 ## Contributions
 This is a personal project for my own learning purposes, so I am not accepting changes or pull requests. However, I welcome new ideas and suggestions for improving the project.
@@ -37,6 +37,7 @@ This is a personal project for my own learning purposes, so I am not accepting c
 - Introduced concurrency to my program such that I can process more than 1 relative path concurrently.
 - Intoduced a map and RWLock to optimize my program such that links that are saved in database will not need to be extracted again.
 - Changed the process to remove whitespace -> Trim.Space() function, then Regex.
+- Added mocks and test cases for database queries.
 
 ### 28/08/2024
 **Whitespace**
