@@ -1,90 +1,59 @@
 package main
 
 import (
-	"bytes"
+	"flag"
 	"fmt"
-	pkglink "html-link-parser/link"
-	"html-link-parser/repository"
-	"io"
-	"net/http"
+	"html-link-parser/models"
+	"log/slog"
 	"time"
-
-	"golang.org/x/net/html"
 )
 
+var baseUrl string
+
 func main() {
+	var urlFlag = flag.String("url", "", "help")
+
+	flag.Parse()
+
+	if *urlFlag == "" {
+		fmt.Println("URL must be provided.")
+		return
+	}
+
+	fmt.Println("Processing", *urlFlag)
+
 	start := time.Now()
-	var sourceUrl = "https://google.com.sg"
+	var err error
 
-	respBody, respErr := call(sourceUrl)
-	if respErr != nil {
-		fmt.Println(respErr)
-		return
-	}
+	// start the program with 1 link (sourceLink)
+	var sourceLink = models.Link{Href: *urlFlag}
 
-	dbErr := repository.InitDB()
+	// add sourceLink to pendingLinks
+	var pendingLinks []models.Link
+	pendingLinks = append(pendingLinks, sourceLink)
+
+	// start db
+	dbErr := models.InitDB()
 	if dbErr != nil {
-		fmt.Println(dbErr)
+		slog.Error("Failed to initialize DB:", "error", dbErr)
 		return
 	}
 
-	links, parseErr := parse(respBody)
-	if parseErr != nil {
-		fmt.Println(parseErr)
-		return
-	}
+	// pendingLinks will be processed in this loop
+	for {
+		concurrentProcess(pendingLinks)
 
-	saveLinks(links, sourceUrl)
-
-	fmt.Println("Total Duration: ", time.Since(start))
-}
-
-func call(url string) ([]byte, error) {
-	resp, respErr := http.Post(url, "application/html", nil)
-	if respErr != nil {
-		return nil, respErr
-	}
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("HTTP request failed with :%s", resp.Status)
-	}
-
-	// Close response body
-	defer resp.Body.Close()
-
-	body, readErr := io.ReadAll(resp.Body)
-	if readErr != nil {
-		return nil, readErr
-	}
-
-	return body, nil
-}
-
-func parse(body []byte) ([]pkglink.Link, error) {
-	node, err := html.Parse(bytes.NewReader(body))
-
-	if err != nil {
-		return nil, err
-	}
-
-	links := pkglink.Extract(node)
-
-	return links, nil
-}
-
-func saveLinks(links []pkglink.Link, sourceUrl string) {
-	// save in database
-	var save, notSave int
-	for _, l := range links {
-		l.SourceUrl = sourceUrl
-		_, err := repository.AddLink(l)
+		// fetch all relative paths (pendingLinks) from the database
+		pendingLinks, err = models.RelativePaths(baseUrl)
 		if err != nil {
-			notSave++
-		} else {
-			save++
+			slog.Error("Relative Path Links:", "error", err)
+		}
+
+		// if there are no more pendingLinks to process, break
+		if len(pendingLinks) == 0 {
+			break
 		}
 	}
 
-	fmt.Println("Save:", save, "records")
-	fmt.Println("Did not save:", notSave, "records")
+	fmt.Println("Total Duration: ", time.Since(start))
 }
