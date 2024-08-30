@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html-link-parser/models"
 	"log/slog"
@@ -10,11 +11,22 @@ import (
 var baseUrl string
 
 func main() {
+	var urlFlag = flag.String("url", "", "help")
+
+	flag.Parse()
+
+	if *urlFlag == "" {
+		fmt.Println("URL must be provided.")
+		return
+	}
+
+	fmt.Println("Processing", *urlFlag)
+
 	start := time.Now()
 	var err error
 
 	// start the program with 1 link (sourceLink)
-	var sourceLink = models.Link{Href: ""}
+	var sourceLink = models.Link{Href: *urlFlag}
 
 	// add sourceLink to pendingLinks
 	var pendingLinks []models.Link

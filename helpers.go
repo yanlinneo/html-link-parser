@@ -82,6 +82,11 @@ func Extract(n *html.Node) []models.Link {
 				if attr.Key == "href" {
 					// we will only be interested in other elements if it is inside a href
 
+					// do not save fragment identifiers, we are only interested in the different links/paths of a site
+					if strings.HasPrefix(attr.Val, "#") {
+						return
+					}
+
 					if exists := checkHref(attr.Val); !exists {
 						saveHref(attr.Val)
 						getText(n.FirstChild)
@@ -111,8 +116,6 @@ func Extract(n *html.Node) []models.Link {
 
 // Runs process function concurrently
 func concurrentProcess(pendingLinks []models.Link) {
-	concurrentStart := time.Now()
-
 	// Buffered channel to limit concurrent goroutines
 	semaphore := make(chan struct{}, 2)
 	var wg sync.WaitGroup
@@ -134,7 +137,6 @@ func concurrentProcess(pendingLinks []models.Link) {
 	}
 
 	wg.Wait() // Wait for all goroutines to finish
-	slog.Info("Duration: ", "duration", time.Since(concurrentStart))
 }
 
 func process(pendingLink *models.Link) {
@@ -232,12 +234,13 @@ func save(links []models.Link, sourceUrl string) {
 		// save all the links, to be improvised
 		_, err := l.Add()
 		if err != nil {
+			slog.Info("Error when adding:", "error", err)
+			slog.Info("Links when adding", "Href", l.Href, "Base", l.BaseUrl, "Source", l.SourceUrl, "Text", l.Text)
 			notSave++
 		} else {
 			save++
 		}
 	}
 
-	fmt.Println("Save:", save, "records")
-	fmt.Println("Did not save:", notSave, "records")
+	slog.Info("Saving into DB:", "Links saved", save, "Links not saved", notSave)
 }

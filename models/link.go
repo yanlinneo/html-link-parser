@@ -85,7 +85,6 @@ func RelativePaths(baseUrl string) ([]Link, error) {
 }
 
 func (link Link) UpdateStatus() (int64, error) {
-	fmt.Println(link.StatusCode, link.StatusMessage)
 	result, err := db.Exec("UPDATE link SET status_code = ?, status_message = ? WHERE id = ?",
 		link.StatusCode, link.StatusMessage, link.ID,
 	)
