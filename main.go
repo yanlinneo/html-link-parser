@@ -12,11 +12,10 @@ var baseUrl string
 
 func main() {
 	var urlFlag = flag.String("url", "", "help")
-
 	flag.Parse()
 
-	if *urlFlag == "" {
-		fmt.Println("URL must be provided.")
+	if validateErr := Validate(urlFlag); validateErr != nil {
+		fmt.Println(validateErr)
 		return
 	}
 

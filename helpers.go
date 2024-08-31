@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html-link-parser/models"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -35,6 +37,24 @@ func saveHref(href string) {
 	defer lock.Unlock()
 
 	existingHref[href] = 1
+}
+
+func Validate(urlString *string) error {
+	parsedUrl, parsedUrlErr := url.Parse(*urlString)
+
+	if parsedUrlErr != nil {
+		return parsedUrlErr
+	}
+
+	if parsedUrl.Scheme == "" {
+		return errors.New("URL should start with https:// or http://")
+	}
+
+	if parsedUrl.Host == "" {
+		return errors.New("URL is missing a host (e.g. example.com)")
+	}
+
+	return nil
 }
 
 // Extract Anchor links from HTML Nodes
@@ -117,7 +137,7 @@ func Extract(n *html.Node) []models.Link {
 // Runs process function concurrently
 func concurrentProcess(pendingLinks []models.Link) {
 	// Buffered channel to limit concurrent goroutines
-	semaphore := make(chan struct{}, 2)
+	semaphore := make(chan struct{}, 10)
 	var wg sync.WaitGroup
 
 	for _, pl := range pendingLinks {
