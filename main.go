@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html-link-parser/models"
 	"log/slog"
+	"os"
 	"time"
 )
 
@@ -35,8 +36,14 @@ func main() {
 	dbErr := models.InitDB()
 	if dbErr != nil {
 		slog.Error("Failed to initialize DB:", "error", dbErr)
-		return
+		os.Exit(1)
 	}
+
+	// _, berr := models.db.Query("SELECT 1")
+	// if berr != nil {
+	// 	slog.Error("Failed to execute test query", "error", berr)
+	// 	return berr
+	// }
 
 	// pendingLinks will be processed in this loop
 	for {

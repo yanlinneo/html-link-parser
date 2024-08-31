@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 type Link struct {
@@ -25,20 +25,14 @@ type Link struct {
 var db *sql.DB
 
 func InitDB() error {
-	cfg := mysql.Config{
-		User:                 os.Getenv("DBUSER"),
-		Passwd:               os.Getenv("DBPASS"),
-		Net:                  "tcp",
-		Addr:                 "127.0.0.1:3306",
-		DBName:               "html_link_parser",
-		ParseTime:            true, //instructs our driver to convert SQL TIME and DATE fields to Go time.Time objects.
-		AllowNativePasswords: true,
-	}
+	dbUser := os.Getenv("DBUSER")
+	dbPass := os.Getenv("DBPASS")
+	dbName := "go_app"
+	var err error
 
 	slog.Info("Connecting to database...")
-
-	var err error
-	db, err = sql.Open("mysql", cfg.FormatDSN())
+	connStr := fmt.Sprintf("postgres://%s:%s@localhost/%s?sslmode=disable", dbUser, dbPass, dbName)
+	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -58,16 +52,21 @@ func InitDB() error {
 func RelativePaths(baseUrl string) ([]Link, error) {
 	var links []Link
 
+	query := `
+		SELECT id, url, base_url 
+		FROM html_link_parser.link 
+		WHERE base_url = $1 
+		AND url LIKE '/%' 
+		AND status_code IS NULL
+	`
+
 	// remember to add prepared params!!!
-	rows, err := db.Query(
-		`SELECT id, url, base_url FROM link WHERE base_url LIKE ? AND url LIKE '/%' AND status_code IS NULL`,
-		baseUrl,
-	)
+	rows, err := db.Query(query, baseUrl)
 	if err != nil {
 		return nil, fmt.Errorf("RelativePaths: %v", err)
 	}
-
 	defer rows.Close()
+
 	for rows.Next() {
 		var link Link
 		if err := rows.Scan(&link.ID, &link.Href, &link.BaseUrl); err != nil {
@@ -85,7 +84,7 @@ func RelativePaths(baseUrl string) ([]Link, error) {
 }
 
 func (link Link) UpdateStatus() (int64, error) {
-	result, err := db.Exec("UPDATE link SET status_code = ?, status_message = ? WHERE id = ?",
+	result, err := db.Exec("UPDATE html_link_parser.link SET status_code = $1, status_message = $2 WHERE id = $3",
 		link.StatusCode, link.StatusMessage, link.ID,
 	)
 
@@ -102,15 +101,15 @@ func (link Link) UpdateStatus() (int64, error) {
 }
 
 func (link Link) Add() (int64, error) {
-	result, err := db.Exec("INSERT INTO link (url, description, source_url, base_url, created_at) VALUES (?, ?, ?, ?, ?)",
-		link.Href, link.Text, link.SourceUrl, link.BaseUrl, time.Now(),
-	)
+	query := `
+		INSERT INTO html_link_parser.link (url, description, source_url, base_url, created_at) 
+		VALUES ($1, $2, $3, $4, $5) 
+		RETURNING id
+	`
 
-	if err != nil {
-		return 0, fmt.Errorf("Add: %v", err)
-	}
+	var id int64
+	err := db.QueryRow(query, link.Href, link.Text, link.SourceUrl, link.BaseUrl, time.Now()).Scan(&id)
 
-	id, err := result.LastInsertId()
 	if err != nil {
 		return 0, fmt.Errorf("Add: %v", err)
 	}
