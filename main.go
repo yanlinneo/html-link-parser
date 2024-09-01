@@ -36,7 +36,7 @@ func InitDB() error {
 }
 
 func main() {
-	var urlFlag = flag.String("url", "", "help")
+	var urlFlag = flag.String("url", "", "Enter a URL")
 	flag.Parse()
 
 	if validateErr := Validate(urlFlag); validateErr != nil {

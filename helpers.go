@@ -152,11 +152,15 @@ func Extract(n *html.Node, sourceUrl string) []models.Link {
 	return links
 }
 
+var updatedLinks []models.Link
+
 // Runs process function concurrently
 func concurrentProcess(pendingLinks []models.Link, linkRepo models.LinkRepository) {
 	// Buffered channel to limit concurrent goroutines
+
 	semaphore := make(chan struct{}, 10)
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	for _, pl := range pendingLinks {
 		wg.Add(1) // Increment WaitGroup counter
@@ -170,11 +174,18 @@ func concurrentProcess(pendingLinks []models.Link, linkRepo models.LinkRepositor
 			}()
 
 			process(&link, linkRepo)
+
+			mu.Lock()
+			updatedLinks = append(updatedLinks, link)
+			mu.Unlock()
+
 			time.Sleep(2 * time.Second)
 		}(pl) // Pass the variable l to avoid closure capture issues
 	}
 
 	wg.Wait() // Wait for all goroutines to finish
+	linkRepo.UpdateStatuses(updatedLinks)
+	updatedLinks = []models.Link{}
 }
 
 func process(pendingLink *models.Link, linkRepo models.LinkRepository) {
@@ -188,11 +199,11 @@ func process(pendingLink *models.Link, linkRepo models.LinkRepository) {
 	if statusCode != 0 {
 		pendingLink.StatusCode = statusCode
 		pendingLink.StatusMessage = statusMessage
-		_, dbErr := linkRepo.UpdateStatus(*pendingLink)
+		// _, dbErr := linkRepo.UpdateStatus(*pendingLink)
 
-		if dbErr != nil {
-			slog.Error("Database UpdateStatus", "error", dbErr) // will continue
-		}
+		// if dbErr != nil {
+		// 	slog.Error("Database UpdateStatus", "error", dbErr) // will continue
+		// }
 	}
 
 	// print the respone error
@@ -212,8 +223,13 @@ func process(pendingLink *models.Link, linkRepo models.LinkRepository) {
 	extractedLinks := Extract(node, sourceUrl)
 
 	// save the extracted links
-	for _, el := range extractedLinks {
-		linkRepo.Add(el)
+	// for _, el := range extractedLinks {
+	// 	linkRepo.Add(el)
+	// }
+	_, bulkErr := linkRepo.AddBulk(extractedLinks)
+	if bulkErr != nil {
+		fmt.Println(bulkErr)
+		return
 	}
 }
 
