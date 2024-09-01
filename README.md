@@ -5,6 +5,7 @@
 
 ## Overview
 - Access a HTML page and all relative paths of the site via API calls concurrently, ensuring each path is accessible.
+- Database: MySQL. No bulk insertions/batch update/link repository.
 
 ## Features
 - **Access the HTML page:**
