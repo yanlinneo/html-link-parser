@@ -1,15 +1,39 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"html-link-parser/models"
+	"log"
 	"log/slog"
 	"os"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var baseUrl string
+var pool *pgxpool.Pool
+
+func InitDB() error {
+	dbUser := os.Getenv("DBUSER")
+	dbPass := os.Getenv("DBPASS")
+	dbName := "go_app"
+	var err error
+
+	slog.Info("Connecting to database...")
+	connStr := fmt.Sprintf("postgres://%s:%s@localhost/%s?sslmode=disable", dbUser, dbPass, dbName)
+	pool, err = pgxpool.New(context.Background(), connStr)
+
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	slog.Info("Database is connected!")
+	return nil
+}
 
 func main() {
 	var urlFlag = flag.String("url", "", "help")
@@ -33,24 +57,23 @@ func main() {
 	pendingLinks = append(pendingLinks, sourceLink)
 
 	// start db
-	dbErr := models.InitDB()
+	dbErr := InitDB()
 	if dbErr != nil {
 		slog.Error("Failed to initialize DB:", "error", dbErr)
 		os.Exit(1)
 	}
 
-	// _, berr := models.db.Query("SELECT 1")
-	// if berr != nil {
-	// 	slog.Error("Failed to execute test query", "error", berr)
-	// 	return berr
-	// }
+	linkRepo := models.NewPgxLinkRepository(pool)
+
+	// Ensure the pool is closed when the program exits
+	defer pool.Close()
 
 	// pendingLinks will be processed in this loop
 	for {
-		concurrentProcess(pendingLinks)
+		concurrentProcess(pendingLinks, linkRepo)
 
 		// fetch all relative paths (pendingLinks) from the database
-		pendingLinks, err = models.RelativePaths(baseUrl)
+		pendingLinks, err = linkRepo.RelativePaths(baseUrl)
 		if err != nil {
 			slog.Error("Relative Path Links:", "error", err)
 		}

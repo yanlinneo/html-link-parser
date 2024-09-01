@@ -57,8 +57,26 @@ func Validate(urlString *string) error {
 	return nil
 }
 
+func getSourceUrl(baseUrl, href string) string {
+	// only relative path will have a base url
+	if baseUrl != "" {
+		return baseUrl + href
+	}
+
+	// this should be a full link
+	return href
+}
+
+func getBaseUrl(href string) string {
+	if strings.HasPrefix(href, "/") {
+		return baseUrl
+	}
+
+	return ""
+}
+
 // Extract Anchor links from HTML Nodes
-func Extract(n *html.Node) []models.Link {
+func Extract(n *html.Node, sourceUrl string) []models.Link {
 	var links []models.Link
 	var text []string
 
@@ -110,7 +128,7 @@ func Extract(n *html.Node) []models.Link {
 					if exists := checkHref(attr.Val); !exists {
 						saveHref(attr.Val)
 						getText(n.FirstChild)
-						links = append(links, models.Link{Href: attr.Val, Text: strings.Join(text, ", ")})
+						links = append(links, models.Link{Href: attr.Val, Text: strings.Join(text, ", "), SourceUrl: sourceUrl, BaseUrl: baseUrl})
 						text = nil
 
 						traverse(n.NextSibling)
@@ -135,7 +153,7 @@ func Extract(n *html.Node) []models.Link {
 }
 
 // Runs process function concurrently
-func concurrentProcess(pendingLinks []models.Link) {
+func concurrentProcess(pendingLinks []models.Link, linkRepo models.LinkRepository) {
 	// Buffered channel to limit concurrent goroutines
 	semaphore := make(chan struct{}, 10)
 	var wg sync.WaitGroup
@@ -151,7 +169,7 @@ func concurrentProcess(pendingLinks []models.Link) {
 				<-semaphore // Release the slot in the semaphore
 			}()
 
-			process(&link)
+			process(&link, linkRepo)
 			time.Sleep(2 * time.Second)
 		}(pl) // Pass the variable l to avoid closure capture issues
 	}
@@ -159,44 +177,44 @@ func concurrentProcess(pendingLinks []models.Link) {
 	wg.Wait() // Wait for all goroutines to finish
 }
 
-func process(pendingLink *models.Link) {
-	// if there is a base url, base url + href (relative path)
-	var url string
-	if pendingLink.BaseUrl != "" {
-		url = pendingLink.BaseUrl
-	}
-
-	url += pendingLink.Href
+func process(pendingLink *models.Link, linkRepo models.LinkRepository) {
+	// get full source url
+	sourceUrl := getSourceUrl(pendingLink.BaseUrl, pendingLink.Href)
 
 	// call the url
-	body, statusCode, statusMessage, respErr := call(url)
+	body, statusCode, statusMessage, respErr := call(sourceUrl)
 
 	// set the status code and message
 	if statusCode != 0 {
 		pendingLink.StatusCode = statusCode
 		pendingLink.StatusMessage = statusMessage
-		_, dbErr := pendingLink.UpdateStatus()
+		_, dbErr := linkRepo.UpdateStatus(*pendingLink)
 
 		if dbErr != nil {
-			slog.Error("Database UpdateStatus Error:", "error", dbErr) // will continue
+			slog.Error("Database UpdateStatus", "error", dbErr) // will continue
 		}
 	}
 
 	// print the respone error
 	if respErr != nil {
-		slog.Error("Response Error:", "error", respErr)
+		slog.Error("Response", "error", respErr)
 		return
 	}
 
 	// parse the response body
-	extractedLinks, parseErr := parse(body)
+	node, parseErr := parse(body)
 	if parseErr != nil {
-		slog.Error("Parsed Error:", "error", parseErr)
+		slog.Error("Parsed", "error", parseErr)
 		return
 	}
 
+	// extract nodes into links
+	extractedLinks := Extract(node, sourceUrl)
+
 	// save the extracted links
-	save(extractedLinks, url)
+	for _, el := range extractedLinks {
+		linkRepo.Add(el)
+	}
 }
 
 // Accessing a URL via API
@@ -226,41 +244,11 @@ func call(url string) ([]byte, int, string, error) {
 }
 
 // Converting Response Body into a Node and calls Extract function
-func parse(body []byte) ([]models.Link, error) {
+func parse(body []byte) (*html.Node, error) {
 	node, err := html.Parse(bytes.NewReader(body))
-
 	if err != nil {
 		return nil, err
 	}
 
-	links := Extract(node)
-
-	return links, nil
-}
-
-// Saving Links to database. To explore if a batch save will be better.
-func save(links []models.Link, sourceUrl string) {
-	// save in database
-	var save, notSave int
-
-	for _, l := range links {
-		l.SourceUrl = sourceUrl
-
-		// check if Href is a relative path, if yes, we set the base url
-		if strings.HasPrefix(l.Href, "/") {
-			l.BaseUrl = baseUrl
-		}
-
-		// save all the links, to be improvised
-		_, err := l.Add()
-		if err != nil {
-			slog.Info("Error when adding:", "error", err)
-			slog.Info("Links when adding", "Href", l.Href, "Base", l.BaseUrl, "Source", l.SourceUrl, "Text", l.Text)
-			notSave++
-		} else {
-			save++
-		}
-	}
-
-	slog.Info("Saving into DB:", "Links saved", save, "Links not saved", notSave)
+	return node, nil
 }

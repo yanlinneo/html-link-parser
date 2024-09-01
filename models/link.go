@@ -1,13 +1,11 @@
 package models
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
-	"log"
-	"log/slog"
-	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 )
 
@@ -22,34 +20,29 @@ type Link struct {
 	StatusMessage   string
 }
 
-var db *sql.DB
-
-func InitDB() error {
-	dbUser := os.Getenv("DBUSER")
-	dbPass := os.Getenv("DBPASS")
-	dbName := "go_app"
-	var err error
-
-	slog.Info("Connecting to database...")
-	connStr := fmt.Sprintf("postgres://%s:%s@localhost/%s?sslmode=disable", dbUser, dbPass, dbName)
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-
-	pingErr := db.Ping()
-	if pingErr != nil {
-		db.Close()
-		log.Fatal(pingErr)
-		return pingErr
-	}
-
-	slog.Info("Database is connected!")
-	return nil
+type LinkRepository interface {
+	RelativePaths(baseUrl string) ([]Link, error)
+	UpdateStatus(link Link) (int64, error)
+	Add(link Link) (int64, error)
 }
 
-func RelativePaths(baseUrl string) ([]Link, error) {
+type PgxLinkRepository struct { //Pgx Concurrency
+	Pool *pgxpool.Pool
+}
+
+func NewPgxLinkRepository(pool *pgxpool.Pool) *PgxLinkRepository {
+	return &PgxLinkRepository{Pool: pool}
+}
+
+func (pgxLinkRepository PgxLinkRepository) RelativePaths(baseUrl string) ([]Link, error) {
+	ctx := context.Background()
+	conn, err := pgxLinkRepository.Pool.Acquire(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer conn.Release()
+
 	var links []Link
 
 	query := `
@@ -61,7 +54,7 @@ func RelativePaths(baseUrl string) ([]Link, error) {
 	`
 
 	// remember to add prepared params!!!
-	rows, err := db.Query(query, baseUrl)
+	rows, err := conn.Query(ctx, query, baseUrl)
 	if err != nil {
 		return nil, fmt.Errorf("RelativePaths: %v", err)
 	}
@@ -83,8 +76,16 @@ func RelativePaths(baseUrl string) ([]Link, error) {
 	return links, nil
 }
 
-func (link Link) UpdateStatus() (int64, error) {
-	result, err := db.Exec("UPDATE html_link_parser.link SET status_code = $1, status_message = $2 WHERE id = $3",
+func (pgxLinkRepository PgxLinkRepository) UpdateStatus(link Link) (int64, error) {
+	ctx := context.Background()
+	conn, err := pgxLinkRepository.Pool.Acquire(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+	defer conn.Release()
+
+	result, err := conn.Exec(ctx, "UPDATE html_link_parser.link SET status_code = $1, status_message = $2 WHERE id = $3",
 		link.StatusCode, link.StatusMessage, link.ID,
 	)
 
@@ -92,15 +93,20 @@ func (link Link) UpdateStatus() (int64, error) {
 		return 0, fmt.Errorf("UpdateStatus: %v", err)
 	}
 
-	id, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("UpdateStatus: %v", err)
-	}
+	rowsAffected := result.RowsAffected()
 
-	return id, nil
+	return rowsAffected, nil
 }
 
-func (link Link) Add() (int64, error) {
+func (pgxLinkRepository PgxLinkRepository) Add(link Link) (int64, error) {
+	ctx := context.Background()
+	conn, err := pgxLinkRepository.Pool.Acquire(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+	defer conn.Release()
+
 	query := `
 		INSERT INTO html_link_parser.link (url, description, source_url, base_url, created_at) 
 		VALUES ($1, $2, $3, $4, $5) 
@@ -108,9 +114,13 @@ func (link Link) Add() (int64, error) {
 	`
 
 	var id int64
-	err := db.QueryRow(query, link.Href, link.Text, link.SourceUrl, link.BaseUrl, time.Now()).Scan(&id)
+	queryErr := conn.QueryRow(
+		ctx,
+		query,
+		link.Href, link.Text, link.SourceUrl, link.BaseUrl, time.Now(),
+	).Scan(&id)
 
-	if err != nil {
+	if queryErr != nil {
 		return 0, fmt.Errorf("Add: %v", err)
 	}
 

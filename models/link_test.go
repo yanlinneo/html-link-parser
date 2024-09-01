@@ -5,9 +5,17 @@ import (
 	"html-link-parser/models"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
-var mockLinkAbout = models.Link{
+type MockLinkRepository struct {
+	mock.Mock
+}
+
+var mockLinkRepo = MockLinkRepository{}
+
+var linkAbout = models.Link{
 	ID:              1,
 	Href:            "/about-us",
 	Text:            "About Us",
@@ -16,7 +24,7 @@ var mockLinkAbout = models.Link{
 	CreatedDateTime: time.Now(),
 }
 
-var mockLinkContact = models.Link{
+var linkContact = models.Link{
 	ID:              2,
 	Href:            "/contact-us",
 	Text:            "Contact Us",
@@ -25,32 +33,25 @@ var mockLinkContact = models.Link{
 	CreatedDateTime: time.Now(),
 }
 
-var mockLinks = []models.Link{mockLinkAbout, mockLinkContact}
+var databaseLinks = []models.Link{linkAbout, linkContact}
 
-type MockLink struct {
-	ID      int64
-	Href    string
-	Text    string
-	BaseUrl string
-}
-
-func RelativePaths(baseUrl string) ([]models.Link, error) {
+func (mockLinkRepo MockLinkRepository) RelativePaths(baseUrl string) ([]models.Link, error) {
 	links := []models.Link{}
 
-	for _, ml := range mockLinks {
-		if ml.BaseUrl == baseUrl {
-			links = append(links, ml)
+	for _, l := range databaseLinks {
+		if l.BaseUrl == baseUrl {
+			links = append(links, l)
 		}
 	}
 
 	return links, nil
 }
 
-func (link MockLink) UpdateStatus() (int64, error) {
+func (mockLinkRepo MockLinkRepository) UpdateStatus(link models.Link) (int64, error) {
 	exist := false
 
-	for _, ml := range mockLinks {
-		if ml.ID == link.ID {
+	for _, l := range databaseLinks {
+		if l.ID == link.ID {
 			exist = true
 			break
 		}
@@ -63,11 +64,11 @@ func (link MockLink) UpdateStatus() (int64, error) {
 	return 1, nil // rows affected
 }
 
-func (link MockLink) Add() (int64, error) {
+func (mockLinkRepo MockLinkRepository) Add(link models.Link) (int64, error) {
 	exist := false
 
-	for _, ml := range mockLinks {
-		if ml.Href == link.Href && ml.BaseUrl == link.BaseUrl {
+	for _, l := range databaseLinks {
+		if l.Href == link.Href && l.BaseUrl == link.BaseUrl {
 			exist = true
 			break
 		}
@@ -82,7 +83,8 @@ func (link MockLink) Add() (int64, error) {
 
 func TestRelativePaths_BaseUrlNotInDatabase(t *testing.T) {
 	baseUrl := "https://google.com.sg"
-	links, err := RelativePaths(baseUrl)
+
+	links, err := mockLinkRepo.RelativePaths(baseUrl)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -94,7 +96,7 @@ func TestRelativePaths_BaseUrlNotInDatabase(t *testing.T) {
 
 func TestRelativePaths_BaseUrlInDatabase(t *testing.T) {
 	baseUrl := "https://github.com/yanlinneo"
-	links, err := RelativePaths(baseUrl)
+	links, err := mockLinkRepo.RelativePaths(baseUrl)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -109,8 +111,8 @@ func TestRelativePaths_BaseUrlInDatabase(t *testing.T) {
 }
 
 func TestUpdateStatus(t *testing.T) {
-	mockLinkTest := MockLink{ID: 2}
-	rowsAffected, err := mockLinkTest.UpdateStatus()
+	testLink := models.Link{ID: 2}
+	rowsAffected, err := mockLinkRepo.UpdateStatus(testLink)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -121,8 +123,8 @@ func TestUpdateStatus(t *testing.T) {
 }
 
 func TestUpdateStatus_IDNotInDatabase(t *testing.T) {
-	mockLinkTest := MockLink{ID: 12}
-	rowsAffected, err := mockLinkTest.UpdateStatus()
+	testLink := models.Link{ID: 12}
+	rowsAffected, err := mockLinkRepo.UpdateStatus(testLink)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -133,8 +135,8 @@ func TestUpdateStatus_IDNotInDatabase(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	mockLinkHome := MockLink{Href: "/home", Text: "Home", BaseUrl: "https://github.com/yanlinneo"}
-	id, err := mockLinkHome.Add()
+	testLinkHome := models.Link{Href: "/home", Text: "Home", BaseUrl: "https://github.com/yanlinneo"}
+	id, err := mockLinkRepo.Add(testLinkHome)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -145,8 +147,8 @@ func TestAdd(t *testing.T) {
 }
 
 func TestAdd_DuplicateEntry(t *testing.T) {
-	mockLinkHome := MockLink{Href: "/about-us", Text: "About", BaseUrl: "https://github.com/yanlinneo"}
-	id, err := mockLinkHome.Add()
+	testLinkHome := models.Link{Href: "/about-us", Text: "About", BaseUrl: "https://github.com/yanlinneo"}
+	id, err := mockLinkRepo.Add(testLinkHome)
 
 	if err == nil {
 		t.Fatalf("Expected duplicate entry error, got no error (err = nil)")
