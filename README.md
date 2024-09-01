@@ -5,6 +5,7 @@
 
 ## Overview
 - Access a HTML page and all relative paths of the site via API calls concurrently, ensuring each path is accessible.
+- Database: PostgreSQL. Library: pgx. Using batch insertion, batch update, link repository. However, batch update may have bugs.
 
 ## Features
 - **Access the HTML page:**
