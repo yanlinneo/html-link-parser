@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 )
@@ -24,6 +25,7 @@ type LinkRepository interface {
 	RelativePaths(baseUrl string) ([]Link, error)
 	UpdateStatus(link Link) (int64, error)
 	Add(link Link) (int64, error)
+	AddBulk(links []Link) (int64, error)
 }
 
 type PgxLinkRepository struct { //Pgx Concurrency
@@ -125,4 +127,40 @@ func (pgxLinkRepository PgxLinkRepository) Add(link Link) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func (pgxLinkRepository PgxLinkRepository) AddBulk(links []Link) (int64, error) {
+	ctx := context.Background()
+	conn, err := pgxLinkRepository.Pool.Acquire(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+	defer conn.Release()
+
+	rows := make([][]interface{}, len(links))
+	for i, link := range links {
+		rows[i] = []interface{}{
+			link.Href,
+			link.Text,
+			link.SourceUrl,
+			link.BaseUrl,
+			time.Now(),
+		}
+	}
+
+	// Perform the bulk insert using COPY FROM
+	copyCount, err := conn.CopyFrom(
+		context.Background(),
+		pgx.Identifier{"html_link_parser", "link"},
+		[]string{"url", "description", "source_url", "base_url", "created_at"},
+		pgx.CopyFromRows(rows),
+	)
+
+	if err != nil {
+		fmt.Println("Error during COPY FROM:", err)
+		return 0, err
+	}
+
+	return copyCount, err
 }

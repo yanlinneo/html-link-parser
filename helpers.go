@@ -170,7 +170,7 @@ func concurrentProcess(pendingLinks []models.Link, linkRepo models.LinkRepositor
 			}()
 
 			process(&link, linkRepo)
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 		}(pl) // Pass the variable l to avoid closure capture issues
 	}
 
@@ -212,9 +212,7 @@ func process(pendingLink *models.Link, linkRepo models.LinkRepository) {
 	extractedLinks := Extract(node, sourceUrl)
 
 	// save the extracted links
-	for _, el := range extractedLinks {
-		linkRepo.Add(el)
-	}
+	linkRepo.AddBulk(extractedLinks)
 }
 
 // Accessing a URL via API
