@@ -1,11 +1,76 @@
+![html-link-parser](https://github.com/user-attachments/assets/ff13d720-c37d-4683-9253-1afc0060e93c)
 # HTML Link Parser
 - Random HTML Link Parser written in Go
+
+## Disclaimer
 > [!CAUTION]
-> This is a personal project created for my own learning purposes. **This project is not intended for use with production data or in a production environment.**
+> **This project is not intended for use with production data or in a production environment.**
+> 
+> This is a personal project created for my own learning purposes.
+> 
+> I am not responsible for any issues that may arise from testing, including but not limited to:
+> 
+> - **Access Blocking:** Your IP or network might get blocked by servers if too many requests are made, or if requests are considered suspicious.
+>   
+> - **Security Risks:** Avoid using URLs from untrusted sources to protect against potential security threats.
+>   
+> - **Sensitive Data Exposure:** Be cautious with URLs that might contain sensitive or private information.
 
 ## Overview
+- CLI app.
 - Access a HTML page and all relative paths of the site via API calls concurrently, ensuring each path is accessible.
+- Results to be viewed in PostgreSQL database.
 
+## Installation
+1. Ensure you have PostgreSQL and Go installed.
+
+2. Create the schema and table in PostgreSQL database.
+```ruby
+-- DROP SCHEMA html_link_parser;
+
+CREATE SCHEMA html_link_parser AUTHORIZATION pg_database_owner;
+
+-- DROP SEQUENCE html_link_parser.link_id_seq;
+
+CREATE SEQUENCE html_link_parser.link_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;-- html_link_parser.link definition
+
+-- Drop table
+
+-- DROP TABLE html_link_parser.link;
+
+CREATE TABLE html_link_parser.link (
+	id serial4 NOT NULL,
+	url varchar NOT NULL,
+	description varchar(450) NULL,
+	source_url varchar NULL,
+	base_url varchar(100) NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	status_code int4 NULL,
+	status_message varchar NULL,
+	CONSTRAINT link_pkey PRIMARY KEY (id),
+	CONSTRAINT url_base_url_uk UNIQUE (url, base_url)
+);
+```
+3. In terminal, navigate to your preferred directory and install HTML Link Parser CLI app.
+```
+go get https://github.com/yanlinneo/html-link-parser
+```
+
+4. To connect the app to database, we need to export the user and password in CLI app. In terminal, run the below commands.
+```
+export DBUSER=<your PostgreSQL database username>
+export DBPASS=<your PostgreSQL database password>
+```
+5. Run the app with an URL flag. Ensure the URL has a scheme (e.g. https://) and host (e.g. github.com).
+```
+go run . -url=https://this-is-an-example-url.com
+```
 ## Features
 - **Access the HTML page:**
   - The initial HTML page is accessed via an API call.
@@ -13,7 +78,7 @@
   - Extract all outer anchor elements with an href attribute from the HTML page.
   - Extract and join all inner text elements within these anchor elements using a ", " delimiter.
 - **Save the links:**
-  - Save the extracted links and text into a MySQL database.
+  - Save the extracted links and text into a database.
 - **Retrieve and process the relative paths**
   - Recursively retrieve all the relative paths from database.
   - For each relative path, access the page, extract anchor links, and save them.
@@ -21,44 +86,14 @@
   - Inner nested anchor links are omitted. Nesting anchor elements is not standard HTML practice.
   - Only links that are contained within anchor elements and are properly linked will be extracted. For example, if a page like "about-us" is not referenced or connected within other pages, it may not be included in the extraction.
   - Other links that are not relative paths are not being utilized at the moment. However, they can be used for future reference and analysis.
+  - Fragment identifiers are excluded.
 
 ## Credits
 Special thanks to https://github.com/gophercises/link for this practise idea.
 
 ## Other Ideas/Enhancements
-- Explore batch inserts/updates for database queries instead of inserting/updating the link individually.
-- Host my project and database in Kubernetes
+- Host my project and database in Kubernetes.
 
 ## Contributions
 This is a personal project for my own learning purposes, so I am not accepting changes or pull requests. However, I welcome new ideas and suggestions for improving the project.
-
-## What I Have Learnt
-### 29/08/2024
-- Introduced concurrency to my program such that I can process more than 1 relative path concurrently.
-- Intoduced a map and RWLock to optimize my program such that links that are saved in database will not need to be extracted again.
-- Changed the process to remove whitespace -> Trim.Space() function, then Regex.
-- Added mocks and test cases for database queries.
-
-### 28/08/2024
-**Whitespace**
-- Trim.Space() function is applicable for leading and trailing whitespace.
-- Used Regex to remove other whitespace such as \t, \n.
-- However, the time taken for Regex to process and remove whitespace is time-consuming. My program takes 1s to process 89 links.
-
-**Nested Anchor Elements**
-- ex5.html (test case) originally in this project will be removed for the following reasons:
-  - This file contains multiple levels of nested anchor (<a>) elements. When it is loaded in a browser, some of the anchor element links appear duplicated.
-  - Inner nested anchor links are not allowed (https://www.w3.org/TR/PR-html40-971107/struct/links.html#h-12.2.2)
-  - Anchor elements must not have interactive content (https://html.spec.whatwg.org/#the-a-element)
-  - Conducted a test on nested anchor elements. If an anchor element (<a>) is nested directly inside another anchor element, modern browsers will generally treat them as separate, sibling elements, rather than as nested elements.
-
-
-### 22/08/2024
-- (Refer to update on 28/08/2024) ~~html.Parse function may have issues if there are other elements nested between two anchor tags. Refer to ex5.html (test case) generated by ChatGPT. To investigate and go through more test cases in the future.~~
-- Adding Test Cases.
-
-### 21/08/2024
-**Naming Conventions for functions/methods**
-- Keep it simple, avoid excessive reptition.
-
 
