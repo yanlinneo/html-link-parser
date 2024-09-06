@@ -1,5 +1,6 @@
-![html-link-parser](https://github.com/user-attachments/assets/ff13d720-c37d-4683-9253-1afc0060e93c)
-# HTML Link Parser
+<img width="773" alt="html_link_parser_logo" src="https://github.com/user-attachments/assets/42eaed4d-1ce6-4eeb-8f48-f19a2508ec31">
+
+## HTML Link Parser
 - Random HTML Link Parser written in Go
 
 ## Disclaimer
@@ -59,7 +60,7 @@ CREATE TABLE html_link_parser.link (
 	CONSTRAINT url_base_url_uk UNIQUE (url, base_url)
 );
 ```
-3. In terminal, navigate to your preferred directory and install HTML Link Parser CLI app.
+3. In terminal, navigate to your preferred directory and clone HTML Link Parser CLI app.
 ```
 git clone https://github.com/yanlinneo/html-link-parser
 ```
