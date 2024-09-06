@@ -19,7 +19,9 @@
 ## Overview
 - CLI app.
 - Access a HTML page and all relative paths of the site via API calls concurrently, ensuring each path is accessible.
-- Results to be viewed in PostgreSQL database.
+- Results are then written to a CSV file and saved in the root directory.
+<img width="793" alt="CLI_Example" src="https://github.com/user-attachments/assets/e7c7e76e-8a5b-4c55-93ae-200e0b6b7bd7">
+
 
 ## Installation
 1. Ensure you have PostgreSQL and Go installed.
@@ -45,7 +47,7 @@ CREATE SEQUENCE html_link_parser.link_id_seq
 -- DROP TABLE html_link_parser.link;
 
 CREATE TABLE html_link_parser.link (
-	id serial3 NOT NULL,
+	id serial4 NOT NULL,
 	url varchar NOT NULL,
 	description varchar NULL,
 	source_url varchar NULL,
@@ -71,7 +73,8 @@ export DBPASS=<your PostgreSQL database password>
 ```
 go run . -url=https://this-is-an-example-url.com
 ```
-6. When the program completes extracting and processing the relative paths, a CSV file will be created and saved in the directory.
+6. When the program completes extracting and processing the relative paths, the results will be written to a CSV file and saved within the root directory.
+<img width="630" alt="CSV_Example" src="https://github.com/user-attachments/assets/dc811a85-26fa-48cc-8d41-df642090b46b">
 
 ## Features
 - **Access the HTML page:**
