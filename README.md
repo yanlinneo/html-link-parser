@@ -45,9 +45,9 @@ CREATE SEQUENCE html_link_parser.link_id_seq
 -- DROP TABLE html_link_parser.link;
 
 CREATE TABLE html_link_parser.link (
-	id serial4 NOT NULL,
+	id serial3 NOT NULL,
 	url varchar NOT NULL,
-	description varchar(450) NULL,
+	description varchar NULL,
 	source_url varchar NULL,
 	base_url varchar(100) NULL,
 	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
@@ -59,7 +59,7 @@ CREATE TABLE html_link_parser.link (
 ```
 3. In terminal, navigate to your preferred directory and install HTML Link Parser CLI app.
 ```
-go get https://github.com/yanlinneo/html-link-parser
+git clone https://github.com/yanlinneo/html-link-parser
 ```
 
 4. To connect the app to database, we need to export the user and password in CLI app. In terminal, run the below commands.
@@ -71,6 +71,8 @@ export DBPASS=<your PostgreSQL database password>
 ```
 go run . -url=https://this-is-an-example-url.com
 ```
+6. When the program completes extracting and processing the relative paths, a CSV file will be created and saved in the directory.
+
 ## Features
 - **Access the HTML page:**
   - The initial HTML page is accessed via an API call.

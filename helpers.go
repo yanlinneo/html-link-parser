@@ -170,7 +170,7 @@ func concurrentProcess(pendingLinks []models.Link, linkRepo models.LinkRepositor
 			}()
 
 			process(&link, linkRepo)
-			time.Sleep(1 * time.Second)
+			//time.Sleep(1 * time.Second)
 		}(pl) // Pass the variable l to avoid closure capture issues
 	}
 
@@ -185,14 +185,16 @@ func process(pendingLink *models.Link, linkRepo models.LinkRepository) {
 	body, statusCode, statusMessage, respErr := call(sourceUrl)
 
 	// set the status code and message
-	if statusCode != 0 {
-		pendingLink.StatusCode = statusCode
-		pendingLink.StatusMessage = statusMessage
+	if statusCode >= 0 {
+		pendingLink.StatusCode.Int32 = int32(statusCode)
+		pendingLink.StatusMessage.String = statusMessage
 		_, dbErr := linkRepo.UpdateStatus(*pendingLink)
 
 		if dbErr != nil {
 			slog.Error("Database UpdateStatus", "error", dbErr) // will continue
 		}
+
+		relativePathsAccessed++
 	}
 
 	// print the respone error
@@ -212,25 +214,39 @@ func process(pendingLink *models.Link, linkRepo models.LinkRepository) {
 	extractedLinks := Extract(node, sourceUrl)
 
 	// save the extracted links
-	linkRepo.AddBulk(extractedLinks)
+	_, dbErr := linkRepo.AddBulk(extractedLinks)
+	if dbErr != nil {
+		slog.Info("Database AddBulk", "error", dbErr)
+	}
 }
 
 // Accessing a URL via API
 func call(url string) ([]byte, int, string, error) {
-	resp, respErr := http.Get(url)
+	//now := time.Now()
+
+	client := &http.Client{
+		Timeout: 10 * time.Second, // Set timeout = 10s
+	}
+
+	resp, respErr := client.Get(url)
 	if respErr != nil {
-		return nil, 0, "", respErr
+		return nil, 0, respErr.Error(), respErr
 	}
 
 	// Close response body
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, resp.StatusCode, resp.Status, fmt.Errorf("HTTP request failed with:%s", resp.Status)
+		// if time.Since(now) > 1*time.Second {
+		// 	return nil, resp.StatusCode, resp.Status, fmt.Errorf("LONG HTTP request failed: url:%s time:%s, took: %v", url, resp.Status, time.Since(now))
+		// }
+		return nil, resp.StatusCode, resp.Status, nil
+		//return nil, resp.StatusCode, resp.Status, fmt.Errorf("HTTP request failed: url:%s status:%s, took: %v", url, resp.Status, time.Since(now))
 	}
 
 	if baseUrl == "" {
-		baseUrl = fmt.Sprintf("%s://%s", resp.Request.URL.Scheme, resp.Request.URL.Host)
+		baseUrl = fmt.Sprintf("%s://%s", resp.Request.URL.Scheme, resp.Request.URL.Hostname())
+		baseUrlHost = strings.Replace(resp.Request.URL.Hostname(), ".", "_", -1)
 	}
 
 	body, readErr := io.ReadAll(resp.Body)

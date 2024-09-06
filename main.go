@@ -2,18 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"html-link-parser/models"
 	"log"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var baseUrl string
+var baseUrlHost string
+var relativePathsAccessed int
 var pool *pgxpool.Pool
 
 func InitDB() error {
@@ -23,6 +27,7 @@ func InitDB() error {
 	var err error
 
 	slog.Info("Connecting to database...")
+
 	connStr := fmt.Sprintf("postgres://%s:%s@localhost/%s?sslmode=disable", dbUser, dbPass, dbName)
 	pool, err = pgxpool.New(context.Background(), connStr)
 
@@ -36,7 +41,7 @@ func InitDB() error {
 }
 
 func main() {
-	var urlFlag = flag.String("url", "", "help")
+	var urlFlag = flag.String("url", "", "Enter an URL:")
 	flag.Parse()
 
 	if validateErr := Validate(urlFlag); validateErr != nil {
@@ -44,7 +49,7 @@ func main() {
 		return
 	}
 
-	fmt.Println("Processing", *urlFlag)
+	slog.Info("Processing", "URL", *urlFlag)
 
 	start := time.Now()
 	var err error
@@ -84,5 +89,48 @@ func main() {
 		}
 	}
 
-	fmt.Println("Total Duration: ", time.Since(start))
+	//print csv
+	dbLinks, err := linkRepo.AllLinksFrom(baseUrl)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	totalLinks := len(dbLinks)
+	linkRecords := [][]string{}
+
+	// headers
+	headers := []string{"Relative Paths / URL", "Text", "Status Code", "Status Message"}
+	linkRecords = append(linkRecords, headers)
+
+	// rows/records
+	for _, dbL := range dbLinks {
+		record := []string{dbL.Href, dbL.Text, strconv.Itoa(int(dbL.StatusCode.Int32)), dbL.StatusMessage.String}
+		linkRecords = append(linkRecords, record)
+	}
+
+	currentTime := time.Now()
+	timeString := fmt.Sprintf("%d%02d%02d_%02d%02d%02d",
+		currentTime.Year(), currentTime.Month(), currentTime.Day(),
+		currentTime.Hour(), currentTime.Minute(), currentTime.Second())
+
+	fileName := baseUrlHost + "_" + timeString + ".csv"
+
+	file, err := os.Create(fileName)
+	if err != nil {
+		log.Fatalln("failed to create file:", err)
+	}
+	defer file.Close()
+
+	w := csv.NewWriter(file)
+	w.WriteAll(linkRecords)
+
+	if err := w.Error(); err != nil {
+		log.Fatalln("error writing csv:", err)
+	}
+
+	slog.Info("Created", "File", fileName)
+	slog.Info("Results",
+		"Total Links Saved", totalLinks,
+		"Relative Paths Accessed", relativePathsAccessed,
+		"Duration", time.Since(start))
 }

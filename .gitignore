@@ -1,3 +1,4 @@
 html-link-parser
 .DS_Store
 Dockerfile
+*.csv
